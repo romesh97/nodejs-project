@@ -1,0 +1,47 @@
+# Trigger the pipeline on changes to the main branch
+trigger:
+  branches:
+    include:
+      - main
+
+# Use the latest Ubuntu VM for the pipeline
+pool:
+  vmImage: "ubuntu-latest"
+
+# Define variables for ACR, image, and tags
+variables:
+  ACR_NAME: "networkReg
+" # Replace with your ACR name
+  IMAGE_NAME: "sample-app" # Replace with your Docker image name
+  IMAGE_TAG: "v1" # Use a version tag or "latest"
+
+# Define pipeline steps
+steps:
+  # Step 1: Log in to Azure
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: "8152da7f-865e-4f54-a7b9-80299262eeb3"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
+      inlineScript: |
+        az acr login --name $(ACR_NAME)
+    displayName: "Log in to Azure and ACR"
+
+  # Step 2: Build Docker image
+  - task: Docker@2
+    inputs:
+      containerRegistry: $(ACR_NAME)
+      repository: $(ACR_NAME).azurecr.io/$(IMAGE_NAME)
+      command: buildAndPush
+      Dockerfile: "**/Dockerfile"
+      tags: |
+        $(IMAGE_TAG)
+    displayName: "Build and Push Docker Image to ACR"
+
+  # Step 3: Deploy Docker container (optional step for direct VM deployment)
+  - script: |
+      sshpass -p $Romesh@123 ssh -o StrictHostKeyChecking=no $romanet@51.13.37.175 <<EOF
+        docker pull $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG)
+        docker run -d -p 80:8080 $(ACR_NAME).azurecr.io/$(IMAGE_NAME):$(IMAGE_TAG)
+      EOF
+    displayName: "Deploy Docker Container to VM"
